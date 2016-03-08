@@ -12,7 +12,7 @@ my %tg;
 $title=shift @d;
 foreach my $d(@d){
           my @dd=&s($d);
-          if ($dd[0]=~/^(\d+_.*)\_run\d/){
+          if ($dd[0]=~/^\d+_(.*)\_run\d/){
                $tg{$1}=1;
           }
           elsif ($dd[0]=~/^\d+\_(.*\_\d+)$/){
@@ -26,7 +26,10 @@ open(OUT,">$o");
 print OUT "$title2\n";
 foreach my $d(@d2){
           my @dd=&s($d);
-          $dd[6]=~/^\d+\_(.*)$/;
+          # remove SILAC label
+          $dd[6]=~s/\(UniMod\:267\)//g;
+          $dd[6]=~s/\(UniMod\:259\)//g;
+          $dd[6]=~/^\d+\_(.*\_\d+)$/;
           if ($tg{$dd[6]} or $tg{$1}){
                print OUT "$d\n";
           }
