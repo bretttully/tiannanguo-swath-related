@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #tiannan,2015,IMSB,ETH
 use Cwd;
+use File::Slurp;
 
 $in=shift; #"feature_alignment_requant_matrix.tsv";
 $in2=shift; #"140306PC-DDA-92files_step4.tsv";
