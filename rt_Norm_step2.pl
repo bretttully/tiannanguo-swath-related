@@ -7,71 +7,102 @@ use threads;
 use Storable;
 use Data::Dumper;
 use Statistics::LineFit;
-$Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0]}] };
+use Statistics::Distributions;
+$Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0 ]}] };
+use Array::transpose;
 
-$num_win=66;
-$in="23R_br224_sw.txt";
-$o="run_correct_missing_swath_spectra.sh";
+$in="nci60sw.txt";
+$o="rt_norm_step2.sh";
 @d=&oF($in);
 
 open(OUT,">$o");
-
-my $n=1;
+print OUT "mkdir rt_norm_com\n";
 foreach my $d(@d){
           my @dd=&s($d);
-          foreach my $i (1..$num_win){
-                  print OUT "bsub \"perl correct_missing_swath_spectra.pl $dd[1]\/$dd[1]\_$i\.mzML\.gz $dd[1]\/$dd[1]\_$i\_corrected\.mzML\.gz\"\n";
-                  $n++;
-                  if ($n%1000==0){
-                       print OUT "sleep 5m\n";
-                  }
-          }
+          print OUT "bsub \"FileMerger -in rt_norm/$dd[1]\_*\.rtnorm.chrom.mzML -out rt_norm_com/$dd[1].rtnorm.chrom.mzML\"\n";
+
 }
 close OUT;
 
 
-sub GRAVY_value{
-     my $pep=shift;
-     my $gravy=0;
-     my $leng=length($data[$i]);
-     for (my $j=0;$j<$leng;$j++){
-          my $aa=substr($pep,$j,1);
-          if ($aa eq "A") {$gravy+=1.8;}
-          elsif ($aa eq "R")  {$gravy+=-4.5;}
-          elsif ($aa eq "N")  {$gravy+=-3.5;}
-          elsif ($aa eq "D")  {$gravy+=-3.5;}
-          elsif ($aa eq "C")  {$gravy+=2.5;}
-          elsif ($aa eq "E")  {$gravy+=-3.5;}
-          elsif ($aa eq "Q")  {$gravy+=-3.5;}
-          elsif ($aa eq "G")  {$gravy+=-0.4;}
-          elsif ($aa eq "H")  {$gravy+=-3.2;}
-          elsif ($aa eq "I")  {$gravy+=4.5;}
-          elsif ($aa eq "L")  {$gravy+=3.8;}
-          elsif ($aa eq "K")  {$gravy+=-3.9;}
-          elsif ($aa eq "M")  {$gravy+=1.9;}
-          elsif ($aa eq "F")  {$gravy+=2.8;}
-          elsif ($aa eq "P")  {$gravy+=-1.6;}
-          elsif ($aa eq "S")  {$gravy+=-0.8;}
-          elsif ($aa eq "T")  {$gravy+=-0.7;}
-          elsif ($aa eq "W")  {$gravy+=-0.9;}
-          elsif ($aa eq "Y")  {$gravy+=-1.3;}
-          elsif ($aa eq "V")  {$gravy+=4.2;}
-     }
-     return $gravy;
+
+
+sub tg_anova3{
+#One-way completely randomized
+#follow tutorial at
+#https://explorable.com/anova
+#validated using online calculator
+#http://turner.faculty.swau.edu/mathematics/math241/materials/anova/
+
+#   use :
+#   @d1=(2,3,7,2,6);
+#   @d2=(2,3,7,5,10);
+#   @d3=(3,2,4,3,5);
+#   ($Fval,$f3,$f1,$pVal)=&tg_anova3(\@d1,\@d2,\@d3);
+#   print "f is ",$Fval,"\np is ",$pVal,"\n";
+
+    my $r=shift;
+    my @d1=@$r;
+    $r=shift;
+    my @d2=@$r;
+    $r=shift;
+    my @d3=@$r;
+
+    my $SS1_1=&tg_anova3_calSS1(@d1);  #sum of squares within groups
+    my $SS1_2=&tg_anova3_calSS1(@d2);
+    my $SS1_3=&tg_anova3_calSS1(@d3);
+
+    my $SS1=$SS1_1+$SS1_2+$SS1_3; #within group squares
+
+    my $SS2=&tg_anova3_calSS2(\@d1,\@d2,\@d3); #total squares
+
+    my $SS3=$SS2-$SS1; #between group squares
+
+    my $totalSampleNum=$#d1+$#d2+$#d3+3;
+    my $groupNum=3;
+    my $freedom1=$totalSampleNum-$groupNum;
+    my $freedom3=$groupNum-1;
+
+    my $Fval=($SS3/$freedom3)/($SS1/$freedom1);  #between group/within group
+
+    #my $pVal=Statistics::Distributions::fdistr ($f3,f1,0.01);
+    $pVal=Statistics::Distributions::fprob ($freedom3,$freedom1,$Fval);
+
+    return ($Fval,$freedom3,$freedom1,$pVal);
 }
 
-sub get_6_element{
+sub tg_anova3_calSS1{
     my @d=@_;
-    my @d2;
-    foreach (1..6){
-             $d2[$_-1]=$d[$_-1];
+    my $ave=&ave(@d);
+    my $v=0;
+    foreach (@d){
+              $v+=($_-$ave)**2;
     }
-    foreach (1..6){
-             shift @d;
-    }
-    return (\@d,\@d2);
+    return $v;
 }
 
+sub tg_anova3_calSS2{
+    my $r=shift;
+    my @d1=@$r;
+    $r=shift;
+    my @d2=@$r;
+    $r=shift;
+    my @d3=@$r;
+    my @d;
+    foreach (@d1){push @d,$_;}
+    foreach (@d2){push @d,$_;}
+    foreach (@d3){push @d,$_;}
+    my $ave=&ave(@d);
+    my $v=0;
+    foreach (@d){
+              $v+=($_-$ave)**2;
+    }
+    return $v;
+}
+
+
+# randomly permutate @array in place
+#fisher_yates_shuffle( \@array );    # permutes @array in place
 sub fisher_yates_shuffle
 {
     my $array = shift;
@@ -82,6 +113,55 @@ sub fisher_yates_shuffle
         @$array[$i,$j] = @$array[$j,$i];
     }
 }
+
+
+
+
+sub digest_prot  {  #input protein sequence and cleavage
+
+    my $prot=shift;
+
+    $prot=~s/K/K\t/g;
+    $prot=~s/R/R\t/g;
+    my @pep=&s($prot);
+
+    my @pep2=@pep;
+    foreach (1..$#pep2){
+             push @pep2,$pep[$_-1].$pep[$_];
+    }
+    foreach (2..$#pep2){
+             push @pep2,$pep[$_-2].$pep[$_-1].$pep[$_];
+    }
+
+    @pep2=&unique(@pep2);
+
+    my @pep3;
+    foreach (@pep2){
+              if (length($_)>=7 && length($_)<=55){
+                  push @pep3,$_;
+              }
+    }
+    @pep3=sort @pep3;
+
+    return join(",",@pep3);  #return peptides array
+
+}
+
+
+
+sub get_6_element{
+    my @d=@_;
+    my @d2;
+    foreach (1..6){
+             $d2[$_-1]=$d[$_- 1];
+    }
+    foreach (1..6){
+             shift @d;
+    }
+    return (\@d,\@d2);
+}
+
+
 sub lineFit{
     #use Statistics::LineFit;
     #more see http://search.cpan.org/dist/Statistics-LineFit-0.07/lib/Statistics/LineFit.pm
@@ -96,9 +176,9 @@ sub lineFit{
 
 sub randomTimeNum{
     @timeData = localtime(time);
-    my $timeNum=join('', @timeData);
-    my $randomNum=rand(100000000);
-    $randomNum=sprintf("%d",$randomNum);
+    my $timeNum=join( '', @timeData);
+    my $randomNum=rand( 100000000);
+    $randomNum=sprintf("%d" ,$randomNum);
     return $randomNum; #my $rtExtractFilename="mzML_rtExtract\_$timeNum\_$randomNum.txt";
 }
 
@@ -118,15 +198,15 @@ sub getFiles{
 }
 
 sub median{
-    @_ == 1 or die ('Sub usage: $median = median(\@array);');
+    @_ == 1 or die ( 'Sub usage: $median = median(\@array);' );
     my ($array_ref) = @_;
     my $count = scalar @$array_ref;
     # Sort a COPY of the array, leaving the original untouched
     my @array = sort { $a <=> $b } @$array_ref;
     if ($count % 2) {
-    return $array[int($count/2)];
+    return $array[int($count/ 2)];
     } else {
-    return ($array[$count/2] + $array[$count/2 - 1]) / 2;
+    return ($array[$count/ 2] + $array[$count/ 2 - 1]) / 2;
     }
 }
 
@@ -158,9 +238,9 @@ sub mean {
     my $num = scalar(@{$x}) - 1;
     my $sum_x = '0';
     my $sum_y = '0';
-    for (my $i = 1; $i < scalar(@{$x}); ++$i){
-    $sum_x += $x->[$i][1];
-    $sum_y += $x->[$i][2];
+    for (my $i = 1 ; $i < scalar(@{$x}); ++$i){
+    $sum_x += $x->[$i][1 ];
+    $sum_y += $x->[$i][2 ];
     }
     my $mu_x = $sum_x / $num;
     my $mu_y = $sum_y / $num;
@@ -170,7 +250,7 @@ sub mean {
 sub ss {
     my ($x,$mean_x,$mean_y,$one,$two)=@_;
     my $sum = '0';
-    for (my $i=1;$i<scalar(@{$x});++$i){
+    for (my $i=1 ;$i<scalar(@{$x});++$i){
     $sum += ($x->[$i][$one]-$mean_x)*($x->[$i][$two]-$mean_y);
     }
     return $sum;
@@ -178,11 +258,11 @@ sub ss {
 sub correlation {
     my ($x) = @_;
     my ($mean_x,$mean_y) = mean($x);
-    my $ssxx=ss($x,$mean_x,$mean_y,1,1);
-    my $ssyy=ss($x,$mean_x,$mean_y,2,2);
-    my $ssxy=ss($x,$mean_x,$mean_y,1,2);
+    my $ssxx=ss($x,$mean_x,$mean_y, 1, 1);
+    my $ssyy=ss($x,$mean_x,$mean_y, 2, 2);
+    my $ssxy=ss($x,$mean_x,$mean_y, 1, 2);
     my $correl=correl($ssxx,$ssyy,$ssxy);
-    my $xcorrel=sprintf("%.4f",$correl);
+    my $xcorrel=sprintf( "%.4f",$correl);
     return($xcorrel);
 }
 sub correl {
@@ -233,7 +313,7 @@ sub s{
     my $b=shift; #saparator
                  #default is \t
     if (!$b){
-        $b="\t";
+        $b="\t" ;
     }
     my @c=split(/$b/,$a);
     return @c;
@@ -248,7 +328,7 @@ sub oF{
 
 sub oF2{
     my $file=shift;
-    open (IN,$file) || die "Error: can not open $file\n";
+    open (IN,$file) || die "Error: can not open $file\n" ;
     my @d=<IN>;
     close IN;
     foreach (@d){chomp $_;}
@@ -257,7 +337,7 @@ sub oF2{
 
 sub unique{
     my @a=@_;
-    @a=grep(($Last eq $_ ? 0 : ( $Last=$_,1)),sort @a);
+    @a=grep(($Last eq $_ ? 0 : ( $Last=$_, 1)),sort @a);
     return @a;
 }
 
@@ -274,7 +354,7 @@ sub unique2{
 sub str2array{
     my $p=shift;
     my @p;
-    for (my $i=0;$i<length($p);$i++){
+    for (my $i=0 ;$i<length($p);$i++){
          push @p,substr($p,$i,1);
     }
     return @p;
@@ -284,7 +364,7 @@ sub printArray{
     my $r=shift;
     my @a=@$r;
     my $o=shift;
-    open(OUT_printArray,">$o");
+    open(OUT_printArray,">$o" );
     foreach (@a){
               print OUT_printArray "$_\n";
     }
@@ -296,7 +376,7 @@ sub printHash{
     my $r=shift;
     my %a=%$r;
     my $o=shift;
-    open(OUT_printHash,">$o");
+    open(OUT_printHash,">$o" );
     foreach (sort {$a<=>$b} keys %a){
               print OUT_printHash "$_\t$a{$_}\n";
     }
@@ -307,10 +387,10 @@ sub printHash{
 
 sub waitHr {
     my $hr=shift;
-    $hr=$hr*3600;
-    for (my $s=$hr;$s>0;$s--){
-         print "$s of $hr\n";
-         sleep(1);
+    $hr=$hr*3600 ;
+    for (my $s=$hr;$s>0 ;$s--){
+         print "$s of $hr\n" ;
+         sleep(1 );
     }
 }
 
@@ -321,10 +401,10 @@ sub ave{
     my $n=$#i+1;
     if ($n>0){
          $a/=$n;
-         $a=sprintf("%.2f",$a);
+         $a=sprintf("%.2f" ,$a);
     }
     else{
-         $a=$i[0];
+         $a=$i[0 ];
     }
     return $a;
 }
@@ -336,8 +416,8 @@ sub sd{
     foreach (@i){
               $sd+=($_-$ave)**2;
     }
-    $sd=($sd/($#i))**0.5;
-    $sd=sprintf("%.2f",$sd);
+    $sd=($sd/($#i))**0.5 ;
+    $sd=sprintf("%.2f" ,$sd);
     return $sd;
 }
 
@@ -353,14 +433,14 @@ sub dos2unix{
     my $in=shift;
     my $o=shift;
     if (!$o){
-        my $o="tmp";
+        my $o= "tmp";
         open(INdos2unix,$in);
         my @d=<INdos2unix>;
         close INdos2unix;
         foreach (@d){
                   $_=~tr/\r\n//d;
         }
-        open(OUTdos2unix,">$o");
+        open(OUTdos2unix,">$o" );
         foreach (@d){
                   print OUTdos2unix "$_\n";
         }
@@ -375,7 +455,7 @@ sub dos2unix{
         foreach (@d){
                   $_=~tr/\r\n//d;
         }
-        open(OUTdos2unix,">$o");
+        open(OUTdos2unix,">$o" );
         foreach (@d){
                   print OUTdos2unix "$_\n";
         }
@@ -431,14 +511,14 @@ sub divide_large_number{
 
 sub showTime {
     my ($sec,$min,$hr,$dayOfMonth,$month,$yearOffset,$dayOfWeek,$dayOfYear,$daylightSavings)=localtime;
-    $hr='0'.$hr if ($hr<10);
-    $min='0'.$min if ($min<10);
-    $sec='0'.$sec if ($sec<10);
+    $hr='0' .$hr if ($hr< 10);
+    $min='0' .$min if ($min< 10);
+    $sec='0' .$sec if ($sec< 10);
     $month++;
-    $month='0'.$month if ($month<10);
+    $month='0' .$month if ($month< 10);
     my $year=1900+$yearOffset;
     my $theTime="$year\.$month\.$dayOfMonth $hr:$min:$sec";
-    print "time:",$theTime,"\n";
+    print "time:" ,$theTime,"\n";
     return $theTime;
 }
 
@@ -454,7 +534,7 @@ sub t_test_p_small{
     my @r1=@$r1;
     my @r2=@$r2;
     my $p="-";
-    if (($#r1>1) and ($#r2>1)){
+    if (($#r1>1) and ($#r2>1 )){
         my $ttest = new Statistics::TTest;
         $ttest->set_significance(95);
         $ttest->load_data(\@r1,\@r2);
@@ -476,14 +556,14 @@ sub t_test_p_paired{
     my @x=@$r1;
     my @y=@$r2;
     my $p="-";
-    if (($#x>1) and ($#y>1)){
+    if (($#x>1) and ($#y>1 )){
         my $ttest = new Statistics::DependantTTest;
-        $ttest->load_data('x',@x);
-        $ttest->load_data('y',@y);
-        my ($tv,$df)=$ttest->perform_t_test('x','y');    #print "tv $tv\ndf $df\n";
+        $ttest->load_data('x' ,@x);
+        $ttest->load_data('y' ,@y);
+        my ($tv,$df)=$ttest->perform_t_test( 'x','y' );    #print "tv $tv\ndf $df\n";
         $p=Statistics::Distributions::tprob($df,$tv);    #print "p $p\n";
         #convert one tail p value into 2 tail p value
-        if ($tv>=0){
+        if ($tv>= 0){
              $p=$p*2;
         }
         else{

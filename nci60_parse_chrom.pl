@@ -9,56 +9,30 @@ use Data::Dumper;
 use Statistics::LineFit;
 $Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0]}] };
 
-$num_win=66;
-$in="23R_br224_sw.txt";
-$o="run_correct_missing_swath_spectra.sh";
+$in="150913_nci60_not_done_chromGz.txt";
+$o="R_$in.sh";
 @d=&oF($in);
 
 open(OUT,">$o");
 
 my $n=1;
 foreach my $d(@d){
-          my @dd=&s($d);
-          foreach my $i (1..$num_win){
-                  print OUT "bsub \"perl correct_missing_swath_spectra.pl $dd[1]\/$dd[1]\_$i\.mzML\.gz $dd[1]\/$dd[1]\_$i\_corrected\.mzML\.gz\"\n";
-                  $n++;
-                  if ($n%1000==0){
-                       print OUT "sleep 5m\n";
-                  }
-          }
+    if ($d=~/(.*)\/(nci\d+\_\d+)\.chrom/){
+         my $dir=$1;
+         my $f2 = $2."\.chrom\.txt\.gz";
+         print OUT "bsub \"python ~/soNas/nci60/parse_chrom_mzML_v4.py ~/soNas/nci60/nci60_reference_peak_groups.txt $d ~/soNas/nci60/cell63dda_step6.csv $dir/$f2\"\n";
+    }
+    elsif ($d=~/(.*)\/(nci\d+\_ms1)\.chrom/){
+         my $dir=$1;
+         my $f2 = $2."\.chrom\.txt\.gz";
+         print OUT "bsub \"python ~/soNas/nci60/parse_chrom_mzML_v4.py ~/soNas/nci60/nci60_reference_peak_groups.txt $d ~/soNas/nci60/cell63dda_step7ms1.csv $dir/$f2\"\n";
+    }
+    $n++;
+    if ($n%300==0){
+         print OUT "sleep 5m\n";
+    }
 }
 close OUT;
-
-
-sub GRAVY_value{
-     my $pep=shift;
-     my $gravy=0;
-     my $leng=length($data[$i]);
-     for (my $j=0;$j<$leng;$j++){
-          my $aa=substr($pep,$j,1);
-          if ($aa eq "A") {$gravy+=1.8;}
-          elsif ($aa eq "R")  {$gravy+=-4.5;}
-          elsif ($aa eq "N")  {$gravy+=-3.5;}
-          elsif ($aa eq "D")  {$gravy+=-3.5;}
-          elsif ($aa eq "C")  {$gravy+=2.5;}
-          elsif ($aa eq "E")  {$gravy+=-3.5;}
-          elsif ($aa eq "Q")  {$gravy+=-3.5;}
-          elsif ($aa eq "G")  {$gravy+=-0.4;}
-          elsif ($aa eq "H")  {$gravy+=-3.2;}
-          elsif ($aa eq "I")  {$gravy+=4.5;}
-          elsif ($aa eq "L")  {$gravy+=3.8;}
-          elsif ($aa eq "K")  {$gravy+=-3.9;}
-          elsif ($aa eq "M")  {$gravy+=1.9;}
-          elsif ($aa eq "F")  {$gravy+=2.8;}
-          elsif ($aa eq "P")  {$gravy+=-1.6;}
-          elsif ($aa eq "S")  {$gravy+=-0.8;}
-          elsif ($aa eq "T")  {$gravy+=-0.7;}
-          elsif ($aa eq "W")  {$gravy+=-0.9;}
-          elsif ($aa eq "Y")  {$gravy+=-1.3;}
-          elsif ($aa eq "V")  {$gravy+=4.2;}
-     }
-     return $gravy;
-}
 
 sub get_6_element{
     my @d=@_;
