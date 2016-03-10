@@ -11,7 +11,7 @@ $Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0]}] };
 
 $o="1R_all_id.txt";
 open(OUT,">$o");
-print OUT "br\ttg\tarea\tmscore\n";
+print OUT "br\ttg\tarea\tmscore\trt\n";
 @f=glob("*.csv");
 foreach my $f(@f){   #print "$f\n";
         if ($f=~/guot_K.*(BR\d+B?)\_with_dscore_filtered/){ print "$f\n";
@@ -23,7 +23,7 @@ foreach my $f(@f){   #print "$f\n";
                      if ($dd[61]<0.01){
                           my @area=&s($dd[57],";");
                           my $area=&sum(@area);
-                          print OUT "$br\t$dd[1]\t$area\t$dd[61]\n";
+                          print OUT "$br\t$dd[1]\t$area\t$dd[61]\t$dd[4]\n";
                      }
              }
 

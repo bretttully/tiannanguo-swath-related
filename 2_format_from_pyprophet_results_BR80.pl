@@ -12,6 +12,7 @@ $Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0]}] };
 $in="1R_all_id.txt";
 $o="2R_pep_area.txt";
 $o2="2R_pep_mscore.txt";
+$o3="2R_pep_rt.txt";
 @d=&oF($in);
 $title=shift @d;
 
@@ -22,6 +23,7 @@ foreach my $d(@d){
           if ($dd[1]!~/DECOY_/){
                $br{$dd[1]}->{$dd[0]}->{area}=$dd[2];
                $br{$dd[1]}->{$dd[0]}->{mscore}=$dd[3];
+               $br{$dd[1]}->{$dd[0]}->{rt}=$dd[4];
                $samples{$dd[0]}=1;
           }
 }
@@ -40,20 +42,30 @@ foreach (keys %samples){
 }
 print OUT2 "\n";
 
+open(OUT3,">$o3");
+print OUT3 "tg";
+foreach (keys %samples){
+         print OUT3 "\t$_";
+}
+print OUT3 "\n";
+
 foreach my $tg (keys %br){
         print OUT "$tg";
         print OUT2 "$tg";
+        print OUT3 "$tg";
         foreach my $sample (keys %samples){
                 print OUT "\t$br{$tg}->{$sample}->{area}";
                 print OUT2 "\t$br{$tg}->{$sample}->{mscore}";
+                print OUT3 "\t$br{$tg}->{$sample}->{rt}";
         }
         print OUT "\n";
         print OUT2 "\n";
+        print OUT3 "\n";
 }
 
 
 
-close OUT;  close OUT2;
+close OUT;  close OUT2; close OUT3;
 
 
 sub GRAVY_value{
