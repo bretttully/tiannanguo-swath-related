@@ -9,8 +9,8 @@ use Data::Dumper;
 use Statistics::LineFit;
 $Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0]}] };
 
-$in="cell63dda_step6.csv";
-$o="cell63dda_step7ms1.csv";
+$in=shift; #"cell63dda_step6.csv";
+$o=shift; #"cell63dda_step7ms1.csv";
 @d=&oF($in);
 $title=shift @d;
 
