@@ -11,8 +11,8 @@ use Statistics::Distributions;
 $Data::Dumper::Sortkeys = sub { [sort {$a cmp $b} keys %{$_[0 ]}] };
 use Array::transpose;
 
-$in="nci60sw.txt";
-$in2="swath_windows_32.txt";
+$in=shift;
+$in2=shift; #"swath_wnd_br66.txt";
 $iRT_lib="iRT_library.TraML";
 $o="rt_norm_step1.sh";
 @d=&oF($in);
